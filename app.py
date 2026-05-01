@@ -1,25 +1,36 @@
 from flask import Flask, render_template, request, redirect, url_for, make_response
-import sqlite3
+import psycopg2 # Ganti dari sqlite3
 from datetime import datetime
 import csv
 import io
+import os
 
 app = Flask(__name__)
 
+# GANTI LINK INI dengan Connection String dari Supabase-mu
+# Di Render nanti, ini sebaiknya ditaruh di Environment Variables
+DB_URL = "postgresql://postgres.esmilibxjaaamrabzsos:6y4l4emjtUWtFrTm@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres"
+
+def get_db_connection():
+    conn = psycopg2.connect(DB_URL)
+    return conn
+
 def init_db():
-    conn = sqlite3.connect('keuangan.db')
+    conn = get_db_connection()
     c = conn.cursor()
+    # Tabel PostgreSQL sedikit beda sintaksnya (SERIAL)
     c.execute('''CREATE TABLE IF NOT EXISTS transaksi
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                 (id SERIAL PRIMARY KEY,
                   tanggal TEXT, jenis TEXT, kategori TEXT, 
                   metode TEXT, sub_metode TEXT, nominal INTEGER, 
                   keterangan TEXT)''')
     conn.commit()
+    c.close()
     conn.close()
 
 @app.route('/')
 def index():
-    conn = sqlite3.connect('keuangan.db')
+    conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT * FROM transaksi ORDER BY id DESC")
     data = c.fetchall()
@@ -29,7 +40,6 @@ def index():
         'ShopeePay': 0, 'Gopay': 0, 'Grab': 0, 'E-Wallet Lain': 0
     }
 
-    # Untuk menyimpan data yang dikelompokkan per bulan
     riwayat_per_bulan = {}
     bulan_indo = {'01': 'Januari', '02': 'Februari', '03': 'Maret', '04': 'April', 
                   '05': 'Mei', '06': 'Juni', '07': 'Juli', '08': 'Agustus', 
@@ -37,27 +47,22 @@ def index():
 
     for row in data:
         jenis, sub, nominal = row[2], row[5], row[6]
-        
-        # Hitung dashboard
         if jenis == 'Pemasukan':
             if sub in dashboard: dashboard[sub] += nominal
         elif jenis == 'Pengeluaran':
             if sub in dashboard: dashboard[sub] -= nominal
 
-        # Kelompokkan per bulan untuk riwayat
-        tanggal_str = row[1] # "2026-05-01 18:30"
-        raw_bulan = tanggal_str[:7] # "2026-05"
-        
+        tanggal_str = row[1]
+        raw_bulan = tanggal_str[:7]
         if raw_bulan not in riwayat_per_bulan:
             tahun, bulan = raw_bulan.split('-')
             nama_bulan = f"{bulan_indo.get(bulan)} {tahun}"
             riwayat_per_bulan[raw_bulan] = {'nama_bulan': nama_bulan, 'transaksi': []}
-            
         riwayat_per_bulan[raw_bulan]['transaksi'].append(row)
 
     total_saldo = sum(dashboard.values())
+    c.close()
     conn.close()
-    
     return render_template('index.html', riwayat_per_bulan=riwayat_per_bulan, dashboard=dashboard, total=total_saldo)
 
 @app.route('/tambah', methods=['POST'])
@@ -66,41 +71,34 @@ def tambah():
     kategori = request.form['kategori']
     metode = request.form['metode']
     sub_metode = request.form.get('sub_metode', metode)
-    
-    nominal_raw = request.form['nominal']
-    nominal_bersih = nominal_raw.replace('.', '') 
-    nominal = int(nominal_bersih)
-
+    nominal = int(request.form['nominal'].replace('.', ''))
     keterangan = request.form['keterangan']
     tanggal = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-    conn = sqlite3.connect('keuangan.db')
+    conn = get_db_connection()
     c = conn.cursor()
-    c.execute("INSERT INTO transaksi (tanggal, jenis, kategori, metode, sub_metode, nominal, keterangan) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    c.execute("INSERT INTO transaksi (tanggal, jenis, kategori, metode, sub_metode, nominal, keterangan) VALUES (%s, %s, %s, %s, %s, %s, %s)",
               (tanggal, jenis, kategori, metode, sub_metode, nominal, keterangan))
     conn.commit()
+    c.close()
     conn.close()
     return redirect(url_for('index'))
 
-# Route baru untuk export Excel (CSV)
 @app.route('/export/<raw_bulan>')
 def export_excel(raw_bulan):
-    conn = sqlite3.connect('keuangan.db')
+    conn = get_db_connection()
     c = conn.cursor()
-    # Ambil data hanya yang bulannya cocok
-    c.execute("SELECT tanggal, jenis, kategori, metode, sub_metode, nominal, keterangan FROM transaksi WHERE tanggal LIKE ? ORDER BY id DESC", (f"{raw_bulan}%",))
+    c.execute("SELECT tanggal, jenis, kategori, metode, sub_metode, nominal, keterangan FROM transaksi WHERE tanggal LIKE %s ORDER BY id DESC", (f"{raw_bulan}%",))
     data = c.fetchall()
+    c.close()
     conn.close()
 
-    # Bikin format CSV
     si = io.StringIO()
-    # Pake delimiter titik koma (;) supaya Excel region Indonesia rapi masuk per kolom
     cw = csv.writer(si, delimiter=';') 
     cw.writerow(['Waktu', 'Jenis', 'Kategori', 'Metode Utama', 'Penyimpanan', 'Nominal (Rp)', 'Keterangan'])
     cw.writerows(data)
-
     output = make_response(si.getvalue())
-    output.headers["Content-Disposition"] = f"attachment; filename=Catatan_Keuangan_Nada_{raw_bulan}.csv"
+    output.headers["Content-Disposition"] = f"attachment; filename=Keuangan_Nada_{raw_bulan}.csv"
     output.headers["Content-type"] = "text/csv"
     return output
 
