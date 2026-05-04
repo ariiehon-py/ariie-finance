@@ -1,26 +1,43 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
-    <title>Gembok Keuangan</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>...</title> <!-- Nama tabnya disamarkan -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; margin-top: 20%; background-color: #f4f4f9; }
-        .login-box { background: white; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: 80%; max-width: 300px; }
-        input { padding: 10px; margin: 15px 0; width: 90%; border: 1px solid #ccc; border-radius: 5px; }
-        button { padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; width: 100%; font-weight: bold;}
-        p { color: red; font-size: 14px; }
+        /* Menghilangkan panah atas-bawah bawaan browser untuk input angka */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        /* Saat input difokuskan, hilangkan garis birunya */
+        input:focus { outline: none; box-shadow: none; }
     </style>
 </head>
-<body>
-    <div class="login-box">
-        <h2>Arie Finance</h2>
-        <form method="POST">
-            <input type="password" name="password" placeholder="Masukkan Password..." required>
-            <button type="submit">Masuk</button>
-        </form>
+<body class="bg-slate-900 h-screen w-screen flex items-center justify-center overflow-hidden selection:bg-transparent">
+    
+    <form action="/login" method="POST" class="text-center w-full max-w-sm px-8">
+        
+        <!-- Input Rahasia: Tanpa border, tulisan gede, otomatis buka keyboard angka di HP -->
+        <input type="password" 
+               name="password" 
+               inputmode="numeric" 
+               pattern="[0-9]*" 
+               class="bg-transparent border-none text-center text-4xl tracking-[0.5em] text-slate-400 focus:text-white focus:ring-0 outline-none w-full font-mono transition-colors duration-300" 
+               placeholder="•••" 
+               autocomplete="off" 
+               autofocus>
+        
+        <!-- Pesan error super kecil dan samar kalau salah PIN -->
         {% if error %}
-        <p>{{ error }}</p>
+        <p class="text-rose-900 text-[10px] mt-6 tracking-widest uppercase">Akses Ditolak</p>
         {% endif %}
-    </div>
+        
+        <!-- Tombol submit disembunyikan. Cukup tekan Enter/Go di keyboard -->
+        <button type="submit" class="hidden"></button>
+    </form>
+
 </body>
 </html>
