@@ -3,39 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>...</title> <!-- Nama tabnya disamarkan -->
+    <title>...</title> 
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Menghilangkan panah atas-bawah bawaan browser untuk input angka */
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { 
             -webkit-appearance: none; 
             margin: 0; 
         }
-        /* Saat input difokuskan, hilangkan garis birunya */
         input:focus { outline: none; box-shadow: none; }
     </style>
 </head>
 <body class="bg-slate-900 h-screen w-screen flex items-center justify-center overflow-hidden selection:bg-transparent">
     
-    <form action="/login" method="POST" class="text-center w-full max-w-sm px-8">
+    <form action="/login" method="POST" class="text-center w-full max-w-sm px-8" id="loginForm">
         
-        <!-- Input Rahasia: Tanpa border, tulisan gede, otomatis buka keyboard angka di HP -->
+        <!-- Input Rahasia dengan Auto-Submit -->
         <input type="password" 
                name="password" 
                inputmode="numeric" 
                pattern="[0-9]*" 
                class="bg-transparent border-none text-center text-4xl tracking-[0.5em] text-slate-400 focus:text-white focus:ring-0 outline-none w-full font-mono transition-colors duration-300" 
-               placeholder="•••" 
+               placeholder="••••" 
                autocomplete="off" 
-               autofocus>
+               autofocus
+               oninput="if(this.value.length === 4) this.form.submit();"> 
+               <!-- PENTING: Angka 4 di atas adalah jumlah digit PIN-mu. Kalau PIN-mu 6 digit, ganti angka 4 jadi 6! -->
         
-        <!-- Pesan error super kecil dan samar kalau salah PIN -->
         {% if error %}
         <p class="text-rose-900 text-[10px] mt-6 tracking-widest uppercase">Akses Ditolak</p>
         {% endif %}
         
-        <!-- Tombol submit disembunyikan. Cukup tekan Enter/Go di keyboard -->
         <button type="submit" class="hidden"></button>
     </form>
 
